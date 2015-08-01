@@ -161,6 +161,21 @@ describe 'mcollective' do
       context 'yaml_facter3' do
         let(:facts) { { :osfamily => 'RedHat', :number_of_cores => '42', :non_string => 69, :facterversion => '3.0.1' } }
 
+        describe '#puppet_exec_path' do
+          context 'default' do
+            it 'should default to /opt/puppetlabs/puppet/bin/puppet' do
+              should contain_class('mcollective').with_puppet_exec_path('/opt/puppetlabs/puppet/bin')
+            end
+          end
+
+          context 'puppet_exec_path defined' do
+            let(:params) { { :puppet_exec_path => '/opt/custom/puppetlabs/bin' } }
+            it 'should use defined puppet_exec_path = /opt/custom/puppetlabs/bin' do
+              should contain_class('mcollective').with_puppet_exec_path('/opt/custom/puppetlabs/bin')
+            end
+          end
+        end
+
         describe '#yaml_fact_path' do
           context 'default' do
             it 'should default to /etc/mcollective/facts.yaml' do
@@ -176,24 +191,34 @@ describe 'mcollective' do
           end
         end
 
-        describe '#puppet_exec_path' do
-          context 'default' do
-            it 'should default to /opt/puppetlabs/puppet/bin/puppet' do
-              should contain_mcollective__server__setting('puppet_exec_path').with_value('/opt/puppetlabs/puppet/bin/puppet')
-            end
+        describe '#yaml_fact_cron' do
+          context 'default (true)' do
+            it { should contain_cron('refresh-mcollective-metadata').with({
+              :command => 'facter --yaml >/etc/mcollective/facts.yaml 2>&1'
+            })}
+            it { should contain_exec('create-mcollective-metadata').with({
+              :command => 'facter --yaml >/etc/mcollective/facts.yaml 2>&1'
+            })}
           end
 
-          context '/some/path/to/puppet' do
-            let(:params) { { :puppet_exec_path => '/some/path/to/puppet' } }
-            it 'should be /some/path/to/puppet/puppet' do
-              should contain_mcollective__server__setting('puppet_exec_path').with_value('/some/path/to/puppet/puppet')
-            end
+          context 'false' do
+            let(:params) { { :yaml_fact_cron => false } }
+            it { should_not contain_cron('refresh-mcollective-metadata') }
           end
         end
+      end
+
+      context 'yaml_facter302' do
+        let(:facts) { { :osfamily => 'RedHat', :number_of_cores => '42', :non_string => 69, :facterversion => '3.0.2' } }
 
         describe '#yaml_fact_cron' do
           context 'default (true)' do
-            it { should contain_cron('refresh-mcollective-metadata') }
+            it { should contain_cron('refresh-mcollective-metadata').with({
+              :command => 'facter --yaml --show-legacy >/etc/mcollective/facts.yaml 2>&1'
+            })}
+            it { should contain_exec('create-mcollective-metadata').with({
+              :command => 'facter --yaml --show-legacy >/etc/mcollective/facts.yaml 2>&1'
+            })}
           end
 
           context 'false' do
